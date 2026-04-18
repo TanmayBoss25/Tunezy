@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title> Personal Blog</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="script.js"></script>
+</head>
+<body>
+  
+
+
+<div class="blog-root" style="position: relative;">
+  <div class="toast" id="toast"></div>
+
+  <!-- LOGIN -->
+  <div id="loginScreen" class="login-screen">
+    <div class="login-card">
+      <div class="login-logo">PB</div>
+      <div class="login-title">Personal Blog</div>
+      <div class="login-sub">Enter pin personalme to continue</div>
+      <input type="password" id="pinInput" placeholder="Password" onkeydown="if(event.key==='Enter')doLogin()">
+      <button class="login-btn" onclick="doLogin()">Sign in</button>
+      <div class="err-msg" id="errMsg"></div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div id="mainApp" class="main-layout" style="display:none;">
+    <div class="sidebar">
+      <div class="sidebar-brand">My Blog</div>
+      <button class="nav-link active" onclick="nav('home',this)"><span class="nav-icon">⌂</span> Home</button>
+      <button class="nav-link" onclick="nav('gallery',this)"><span class="nav-icon">◈</span> Gallery</button>
+      <button class="nav-link" onclick="nav('diary',this)"><span class="nav-icon">✎</span> Diary</button>
+      <button class="nav-link" onclick="nav('birthdays',this)"><span class="nav-icon">♡</span> Birthdays</button>
+      <button class="nav-link" onclick="nav('mood',this)"><span class="nav-icon">◉</span> Mood</button>
+      <button class="nav-link" onclick="nav('about',this)"><span class="nav-icon">◎</span> About</button>
+      <button class="nav-link" onclick="nav('settings',this)"><span class="nav-icon">⚙</span> Settings</button>
+      <div class="sidebar-footer">
+        <button class="logout-btn" onclick="doLogout()">Sign out</button>
+      </div>
+    </div>
+
+    <div class="content-area">
+
+      <!-- HOME -->
+      <div class="section active" id="sec-home">
+        <div class="page-title">Good to see you ✦</div>
+        <div class="stats-row">
+          <div class="stat-card"><div class="stat-num" id="statDiary">0</div><div class="stat-label">Diary entries</div></div>
+          <div class="stat-card"><div class="stat-num" id="statBirthdays">0</div><div class="stat-label">Birthdays</div></div>
+          <div class="stat-card"><div class="stat-num" id="statPhotos">0</div><div class="stat-label">Photos</div></div>
+        </div>
+        <div class="quote-card" id="dailyQuote">Loading quote...</div>
+        <div class="card">
+          <div class="card-label">About me</div>
+          <div class="card-value" id="homeAbout">No information added yet. Go to About to add.</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Upcoming birthdays</div>
+          <div id="homeUpcoming" class="card-value">No upcoming birthdays.</div>
+        </div>
+      </div>
+
+      <!-- GALLERY -->
+      <div class="section" id="sec-gallery">
+        <div class="page-title">Gallery</div>
+        <div class="card">
+          <div class="field"><label>Date</label><input type="date" id="galleryDate"></div>
+          <div class="field"><label>Photo</label><input type="file" id="imageUpload" accept="image/*"></div>
+          <button class="action-btn" onclick="addPhoto()">Add photo</button>
+        </div>
+        <div id="galleryContent"></div>
+      </div>
+
+      <!-- DIARY -->
+      <div class="section" id="sec-diary">
+        <div class="page-title">Diary</div>
+        <div class="card">
+          <div class="field"><label>Date</label><input type="date" id="diaryDate"></div>
+          <div class="field"><label>Entry</label><textarea id="diaryEntry" placeholder="Write your thoughts..."></textarea></div>
+          <button class="action-btn" onclick="saveDiary()">Save entry</button>
+        </div>
+        <div class="card" style="margin-top:1rem;">
+          <div class="card-label">Search entries</div>
+          <div class="field" style="margin-top:8px;"><label>Date</label><input type="date" id="searchDate"></div>
+          <button class="action-btn" onclick="searchDiary()">Search</button>
+          <button class="secondary-btn" onclick="showAllDiary()">All entries</button>
+          <div class="diary-result" id="searchResult" style="display:none;"></div>
+        </div>
+      </div>
+
+      <!-- BIRTHDAYS -->
+      <div class="section" id="sec-birthdays">
+        <div class="page-title">Birthdays</div>
+        <div class="card">
+          <div class="field"><label>Name</label><input type="text" id="bdName" placeholder="Friend's name"></div>
+          <div class="field"><label>Date</label><input type="date" id="bdDate"></div>
+          <button class="action-btn" onclick="addBirthday()">Add birthday</button>
+        </div>
+        <div id="birthdayList" style="margin-top:1rem;"></div>
+      </div>
+
+      <!-- MOOD TRACKER -->
+      <div class="section" id="sec-mood">
+        <div class="page-title">Mood tracker</div>
+        <div class="card">
+          <div class="card-label">How are you feeling today?</div>
+          <div class="mood-row" id="moodRow">
+            <button class="mood-btn" onclick="selectMood(this,'Happy')">😊 Happy</button>
+            <button class="mood-btn" onclick="selectMood(this,'Calm')">😌 Calm</button>
+            <button class="mood-btn" onclick="selectMood(this,'Sad')">😔 Sad</button>
+            <button class="mood-btn" onclick="selectMood(this,'Excited')">🤩 Excited</button>
+            <button class="mood-btn" onclick="selectMood(this,'Tired')">😴 Tired</button>
+            <button class="mood-btn" onclick="selectMood(this,'Anxious')">😰 Anxious</button>
+          </div>
+          <div class="field" style="margin-top:12px;"><label>Note (optional)</label><input type="text" id="moodNote" placeholder="Anything on your mind?"></div>
+          <button class="action-btn" onclick="saveMood()">Log mood</button>
+        </div>
+        <div id="moodHistory" style="margin-top:1rem;"></div>
+      </div>
+
+      <!-- ABOUT -->
+      <div class="section" id="sec-about">
+        <div class="page-title">About me</div>
+        <div class="card">
+          <div class="field"><textarea id="aboutInput" placeholder="Write a little about yourself..." rows="6"></textarea></div>
+          <button class="action-btn" onclick="saveAbout()">Save</button>
+        </div>
+      </div>
+
+      <!-- SETTINGS -->
+      <div class="section" id="sec-settings">
+        <div class="page-title">Settings</div>
+        <div class="card">
+          <div class="card-label">Font style</div>
+          <div class="field" style="margin-top:8px;">
+            <select id="fontSel">
+              <option value="Georgia, serif">Georgia (default)</option>
+              <option value="Arial, sans-serif">Arial</option>
+              <option value="'Courier New', monospace">Courier New</option>
+              <option value="'Times New Roman', serif">Times New Roman</option>
+              <option value="Verdana, sans-serif">Verdana</option>
+            </select>
+          </div>
+          <div class="card-label" style="margin-top:14px;">Theme</div>
+          <div class="mood-row" style="margin-top:8px;">
+            <button class="mood-btn" onclick="applyTheme('beige')">Beige (default)</button>
+            <button class="mood-btn" onclick="applyTheme('white')">Pure white</button>
+            <button class="mood-btn" onclick="applyTheme('dark')">Dark</button>
+          </div>
+          <div style="margin-top:16px;">
+            <button class="action-btn" onclick="applyFont()">Apply</button>
+            <button class="secondary-btn" onclick="clearAll()">Clear all data</button>
+          </div>
+        </div>
+        <div class="card" style="margin-top:1rem;">
+          <div class="card-label">Change password</div>
+          <div class="field" style="margin-top:8px;"><label>New password</label><input type="password" id="newPass" placeholder="Enter new password"></div>
+          <button class="action-btn" onclick="changePass()">Update password</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+</body>
+</html>
+
+
+
+
