@@ -1,173 +1,533 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title> Personal Blog</title>
-  <link rel="stylesheet" href="style.css">
-  <script src="script.js"></script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tunezy – Music, Reimagined</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- script.js loaded at bottom of body -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Figtree:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+
+
 </head>
+
 <body>
-  
 
+    <!-- ===== HIDDEN YOUTUBE IFRAME (The Trick!) ===== -->
+    <div id="yt-hidden-player"></div>
 
-<div class="blog-root" style="position: relative;">
-  <div class="toast" id="toast"></div>
-
-  <!-- LOGIN -->
-  <div id="loginScreen" class="login-screen">
-    <div class="login-card">
-      <div class="login-logo">PB</div>
-      <div class="login-title">Personal Blog</div>
-      <div class="login-sub">Enter pin personalme to continue</div>
-      <input type="password" id="pinInput" placeholder="Password" onkeydown="if(event.key==='Enter')doLogin()">
-      <button class="login-btn" onclick="doLogin()">Sign in</button>
-      <div class="err-msg" id="errMsg"></div>
-    </div>
-  </div>
-
-  <!-- MAIN -->
-  <div id="mainApp" class="main-layout" style="display:none;">
-    <div class="sidebar">
-      <div class="sidebar-brand">My Blog</div>
-      <button class="nav-link active" onclick="nav('home',this)"><span class="nav-icon">⌂</span> Home</button>
-      <button class="nav-link" onclick="nav('gallery',this)"><span class="nav-icon">◈</span> Gallery</button>
-      <button class="nav-link" onclick="nav('diary',this)"><span class="nav-icon">✎</span> Diary</button>
-      <button class="nav-link" onclick="nav('birthdays',this)"><span class="nav-icon">♡</span> Birthdays</button>
-      <button class="nav-link" onclick="nav('mood',this)"><span class="nav-icon">◉</span> Mood</button>
-      <button class="nav-link" onclick="nav('about',this)"><span class="nav-icon">◎</span> About</button>
-      <button class="nav-link" onclick="nav('settings',this)"><span class="nav-icon">⚙</span> Settings</button>
-      <div class="sidebar-footer">
-        <button class="logout-btn" onclick="doLogout()">Sign out</button>
-      </div>
+    <!-- ===== TOAST ===== -->
+    <div class="toast" id="toast">
+        <i class="fas fa-check-circle"></i>
+        <span id="toast-msg">Added to liked songs!</span>
     </div>
 
-    <div class="content-area">
+    <!-- ===== APP SHELL ===== -->
+    <div class="app-shell">
 
-      <!-- HOME -->
-      <div class="section active" id="sec-home">
-        <div class="page-title">Good to see you ✦</div>
-        <div class="stats-row">
-          <div class="stat-card"><div class="stat-num" id="statDiary">0</div><div class="stat-label">Diary entries</div></div>
-          <div class="stat-card"><div class="stat-num" id="statBirthdays">0</div><div class="stat-label">Birthdays</div></div>
-          <div class="stat-card"><div class="stat-num" id="statPhotos">0</div><div class="stat-label">Photos</div></div>
-        </div>
-        <div class="quote-card" id="dailyQuote">Loading quote...</div>
-        <div class="card">
-          <div class="card-label">About me</div>
-          <div class="card-value" id="homeAbout">No information added yet. Go to About to add.</div>
-        </div>
-        <div class="card">
-          <div class="card-label">Upcoming birthdays</div>
-          <div id="homeUpcoming" class="card-value">No upcoming birthdays.</div>
-        </div>
-      </div>
+        <!-- SIDEBAR -->
+        <nav class="sidebar">
+            <div class="sidebar-logo">
+                <div class="logo-icon"><i class="fas fa-headphones-alt"></i></div>
+                <span>Tunezy</span>
+            </div>
 
-      <!-- GALLERY -->
-      <div class="section" id="sec-gallery">
-        <div class="page-title">Gallery</div>
-        <div class="card">
-          <div class="field"><label>Date</label><input type="date" id="galleryDate"></div>
-          <div class="field"><label>Photo</label><input type="file" id="imageUpload" accept="image/*"></div>
-          <button class="action-btn" onclick="addPhoto()">Add photo</button>
-        </div>
-        <div id="galleryContent"></div>
-      </div>
+            <div class="sidebar-nav">
+                <div class="nav-label">Menu</div>
+                <div class="nav-item active" onclick="goTo('home',this)">
+                    <i class="fas fa-house"></i> Home
+                </div>
+                <div class="nav-item" onclick="goTo('search',this)">
+                    <i class="fas fa-search"></i> Search
+                </div>
+                <div class="nav-item" onclick="goTo('library',this)">
+                    <i class="fas fa-music"></i> Library
+                </div>
+                <div class="nav-item" onclick="goTo('profile',this)">
+                    <i class="fas fa-user-circle"></i> Profile
+                </div>
+                <div class="nav-item" onclick="goTo('premium',this)">
+                    <i class="fas fa-star"></i> Premium
+                </div>
 
-      <!-- DIARY -->
-      <div class="section" id="sec-diary">
-        <div class="page-title">Diary</div>
-        <div class="card">
-          <div class="field"><label>Date</label><input type="date" id="diaryDate"></div>
-          <div class="field"><label>Entry</label><textarea id="diaryEntry" placeholder="Write your thoughts..."></textarea></div>
-          <button class="action-btn" onclick="saveDiary()">Save entry</button>
-        </div>
-        <div class="card" style="margin-top:1rem;">
-          <div class="card-label">Search entries</div>
-          <div class="field" style="margin-top:8px;"><label>Date</label><input type="date" id="searchDate"></div>
-          <button class="action-btn" onclick="searchDiary()">Search</button>
-          <button class="secondary-btn" onclick="showAllDiary()">All entries</button>
-          <div class="diary-result" id="searchResult" style="display:none;"></div>
-        </div>
-      </div>
+                <div class="nav-label">Playlists</div>
+                <div class="nav-item" onclick="showToast('Opening Chill Vibes…')"><i class="fas fa-list"></i> Chill
+                    Vibes</div>
+                <div class="nav-item" onclick="showToast('Opening Workout Bangers…')"><i class="fas fa-list"></i>
+                    Workout Bangers</div>
+                <div class="nav-item" onclick="showToast('Opening Late Night…')"><i class="fas fa-list"></i> Late Night
+                </div>
+                <div class="nav-item" onclick="showToast('Opening Bollywood Hits…')"><i class="fas fa-list"></i>
+                    Bollywood Hits</div>
+            </div>
+        </nav>
 
-      <!-- BIRTHDAYS -->
-      <div class="section" id="sec-birthdays">
-        <div class="page-title">Birthdays</div>
-        <div class="card">
-          <div class="field"><label>Name</label><input type="text" id="bdName" placeholder="Friend's name"></div>
-          <div class="field"><label>Date</label><input type="date" id="bdDate"></div>
-          <button class="action-btn" onclick="addBirthday()">Add birthday</button>
-        </div>
-        <div id="birthdayList" style="margin-top:1rem;"></div>
-      </div>
+        <!-- MAIN CONTENT -->
+        <main class="main-content" id="main-content">
 
-      <!-- MOOD TRACKER -->
-      <div class="section" id="sec-mood">
-        <div class="page-title">Mood tracker</div>
-        <div class="card">
-          <div class="card-label">How are you feeling today?</div>
-          <div class="mood-row" id="moodRow">
-            <button class="mood-btn" onclick="selectMood(this,'Happy')">😊 Happy</button>
-            <button class="mood-btn" onclick="selectMood(this,'Calm')">😌 Calm</button>
-            <button class="mood-btn" onclick="selectMood(this,'Sad')">😔 Sad</button>
-            <button class="mood-btn" onclick="selectMood(this,'Excited')">🤩 Excited</button>
-            <button class="mood-btn" onclick="selectMood(this,'Tired')">😴 Tired</button>
-            <button class="mood-btn" onclick="selectMood(this,'Anxious')">😰 Anxious</button>
-          </div>
-          <div class="field" style="margin-top:12px;"><label>Note (optional)</label><input type="text" id="moodNote" placeholder="Anything on your mind?"></div>
-          <button class="action-btn" onclick="saveMood()">Log mood</button>
-        </div>
-        <div id="moodHistory" style="margin-top:1rem;"></div>
-      </div>
+            <!-- ======= HOME PAGE ======= -->
+            <div id="page-home" class="page active">
+                <div class="page-header">
+                    <h1 class="page-title">Good <span id="greeting-time">Evening</span> 👋</h1>
+                </div>
 
-      <!-- ABOUT -->
-      <div class="section" id="sec-about">
-        <div class="page-title">About me</div>
-        <div class="card">
-          <div class="field"><textarea id="aboutInput" placeholder="Write a little about yourself..." rows="6"></textarea></div>
-          <button class="action-btn" onclick="saveAbout()">Save</button>
-        </div>
-      </div>
+                <div class="hero-banner">
+                    <div class="hero-tag"><i class="fas fa-fire"></i> Trending Now</div>
+                    <h1>Your Personal<br>Music Universe</h1>
+                    <p>Stream millions of songs, discover new artists, and vibe to curated playlists — all for free.</p>
+                    <div class="hero-btns">
+                        <button class="btn-primary"
+                            onclick="goTo('search',null)"><i
+                                class="fas fa-search"></i> &nbsp;Search Songs</button>
+                        <button class="btn-ghost" onclick="if(!isShuffle)toggleShuffle();searchAndPlay('Bollywood Top 50 hits 2024')"><i
+                                class="fas fa-shuffle"></i> &nbsp;Shuffle Play</button>
+                    </div>
+                </div>
 
-      <!-- SETTINGS -->
-      <div class="section" id="sec-settings">
-        <div class="page-title">Settings</div>
-        <div class="card">
-          <div class="card-label">Font style</div>
-          <div class="field" style="margin-top:8px;">
-            <select id="fontSel">
-              <option value="Georgia, serif">Georgia (default)</option>
-              <option value="Arial, sans-serif">Arial</option>
-              <option value="'Courier New', monospace">Courier New</option>
-              <option value="'Times New Roman', serif">Times New Roman</option>
-              <option value="Verdana, sans-serif">Verdana</option>
-            </select>
-          </div>
-          <div class="card-label" style="margin-top:14px;">Theme</div>
-          <div class="mood-row" style="margin-top:8px;">
-            <button class="mood-btn" onclick="applyTheme('beige')">Beige (default)</button>
-            <button class="mood-btn" onclick="applyTheme('white')">Pure white</button>
-            <button class="mood-btn" onclick="applyTheme('dark')">Dark</button>
-          </div>
-          <div style="margin-top:16px;">
-            <button class="action-btn" onclick="applyFont()">Apply</button>
-            <button class="secondary-btn" onclick="clearAll()">Clear all data</button>
-          </div>
-        </div>
-        <div class="card" style="margin-top:1rem;">
-          <div class="card-label">Change password</div>
-          <div class="field" style="margin-top:8px;"><label>New password</label><input type="password" id="newPass" placeholder="Enter new password"></div>
-          <button class="action-btn" onclick="changePass()">Update password</button>
-        </div>
-      </div>
+                <div class="section-head">
+                    <h2>🔥 Featured Playlists</h2>
+                    <a href="#" onclick="goTo('library',null);return false;">See all</a>
+                </div>
+                <div class="cards-scroll">
+                    <div class="music-card" onclick="searchAndPlay('Bollywood Top 50 2024')">
+                        <div class="card-art gradient-purple-pink">🎵
+                            <button class="card-play-btn" title="Play"><i class="fas fa-play"></i></button>
+                        </div>
+                        <h4>Bollywood Top 50</h4>
+                        <p>Hot hits 2024</p>
+                    </div>
+                    <div class="music-card" onclick="searchAndPlay('Lofi chill beats to study')">
+                        <div class="card-art gradient-dark-cyan">🌙
+                            <button class="card-play-btn" title="Play"><i class="fas fa-play"></i></button>
+                        </div>
+                        <h4>Lofi Study Beats</h4>
+                        <p>Focus & chill</p>
+                    </div>
+                    <div class="music-card" onclick="searchAndPlay('Workout motivation 2024 gym music')">
+                        <div class="card-art gradient-red-orange">🏋️
+                            <button class="card-play-btn" title="Play"><i class="fas fa-play"></i></button>
+                        </div>
+                        <h4>Workout Bangers</h4>
+                        <p>Get pumped</p>
+                    </div>
+                    <div class="music-card" onclick="searchAndPlay('Romantic Hindi songs playlist')">
+                        <div class="card-art gradient-pink-purple">💕
+                            <button class="card-play-btn" title="Play"><i class="fas fa-play"></i></button>
+                        </div>
+                        <h4>Romance Rewind</h4>
+                        <p>Love anthems</p>
+                    </div>
+                    <div class="music-card" onclick="searchAndPlay('Party hits 2024 EDM')">
+                        <div class="card-art gradient-amber-red">🎉
+                            <button class="card-play-btn" title="Play"><i class="fas fa-play"></i></button>
+                        </div>
+                        <h4>Party Central</h4>
+                        <p>EDM & Pop</p>
+                    </div>
+                    <div class="music-card" onclick="searchAndPlay('Arijit Singh best songs')">
+                        <div class="card-art gradient-green-cyan">🎤
+                            <button class="card-play-btn" title="Play"><i class="fas fa-play"></i></button>
+                        </div>
+                        <h4>Arijit Singh Mix</h4>
+                        <p>Soulful voice</p>
+                    </div>
+                </div>
 
+                <div class="section-head section-mood">
+                    <h2>🎭 Browse by Mood</h2>
+                </div>
+                <div class="mood-grid">
+                    <div class="mood-card mood-indigo"
+                        onclick="searchAndPlay('happy upbeat songs 2024')">
+                        <h3>Happy</h3>
+                        <p>Feel-good vibes</p>
+                        <span class="mood-emoji">😄</span>
+                    </div>
+                    <div class="mood-card mood-slate"
+                        onclick="searchAndPlay('sad emotional songs hindi')">
+                        <h3>Sad</h3>
+                        <p>Let it out</p>
+                        <span class="mood-emoji">😢</span>
+                    </div>
+                    <div class="mood-card mood-green"
+                        onclick="searchAndPlay('calm relaxing meditation music')">
+                        <h3>Calm</h3>
+                        <p>Peace & quiet</p>
+                        <span class="mood-emoji">🧘</span>
+                    </div>
+                    <div class="mood-card mood-brown"
+                        onclick="searchAndPlay('energetic pump up music 2024')">
+                        <h3>Energy</h3>
+                        <p>Full throttle</p>
+                        <span class="mood-emoji">⚡</span>
+                    </div>
+                </div>
+
+                <div class="section-head section-recent">
+                    <h2>🕐 Recently Played</h2>
+                </div>
+                <div class="track-list" id="recent-tracks">
+                    <!-- Filled by JS -->
+                </div>
+            </div>
+
+            <!-- ======= SEARCH PAGE ======= -->
+            <div id="page-search" class="page">
+                <div class="search-hero">
+                    <h1 class="page-title search-page-title">Search</h1>
+                    <div class="search-bar-wrap">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="searchInput" placeholder="Search for songs, artists, albums…"
+                            oninput="handleSearch(this.value)" onkeydown="if(event.key==='Enter')triggerSearch()">
+                        <button class="search-btn" onclick="triggerSearch()">Search</button>
+                    </div>
+                </div>
+
+                <div id="search-results-area">
+                    <div class="search-empty">
+                        <i class="fas fa-headphones"></i>
+                        <h3>Find your next obsession</h3>
+                        <p>Type above to search 800M+ tracks via YouTube</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ======= LIBRARY PAGE ======= -->
+            <div id="page-library" class="page">
+                <div class="page-header">
+                    <h1 class="page-title">Your <span>Library</span></h1>
+                </div>
+
+                <div class="section-head section-playlists">
+                    <h2>📀 Your Playlists</h2>
+                </div>
+                <div class="library-grid">
+                    <div class="playlist-card" onclick="searchAndPlay('Bollywood Top 50')">
+                        <div class="playlist-art">
+                            <div>🎵</div>
+                            <div>🎤</div>
+                            <div>🎶</div>
+                            <div>🎸</div>
+                        </div>
+                        <h4>Bollywood Top 50</h4>
+                        <p>24 songs</p>
+                    </div>
+                    <div class="playlist-card" onclick="searchAndPlay('Lofi beats to study')">
+                        <div class="playlist-art">
+                            <div>🌙</div>
+                            <div>☕</div>
+                            <div>📚</div>
+                            <div>🎧</div>
+                        </div>
+                        <h4>Study & Focus</h4>
+                        <p>18 songs</p>
+                    </div>
+                    <div class="playlist-card" onclick="searchAndPlay('Hindi workout music gym')">
+                        <div class="playlist-art">
+                            <div>🏋️</div>
+                            <div>⚡</div>
+                            <div>🔥</div>
+                            <div>💪</div>
+                        </div>
+                        <h4>Gym Motivation</h4>
+                        <p>31 songs</p>
+                    </div>
+                    <div class="playlist-card" onclick="searchAndPlay('Romantic Hindi songs 2024')">
+                        <div class="playlist-art">
+                            <div>💕</div>
+                            <div>🌹</div>
+                            <div>🎻</div>
+                            <div>✨</div>
+                        </div>
+                        <h4>Love Vibes</h4>
+                        <p>15 songs</p>
+                    </div>
+                    <div class="playlist-card" onclick="searchAndPlay('Punjabi songs 2024')">
+                        <div class="playlist-art">
+                            <div>🎉</div>
+                            <div>🍾</div>
+                            <div>🎊</div>
+                            <div>🥳</div>
+                        </div>
+                        <h4>Party Mode</h4>
+                        <p>28 songs</p>
+                    </div>
+                    <div class="playlist-card" onclick="showToast('Creating new playlist…')">
+                        <div class="playlist-art playlist-art-new">
+                            <div class="new-playlist-icon">＋</div>
+                        </div>
+                        <h4 class="new-playlist-title">New Playlist</h4>
+                        <p>Create your mix</p>
+                    </div>
+                </div>
+
+                <div class="section-head section-liked">
+                    <h2>❤️ Liked Songs</h2>
+                </div>
+                <div class="liked-list" id="liked-songs-list">
+                    <div style="padding:40px;text-align:center;color:var(--text-muted)">
+                        <i class="fas fa-heart" style="font-size:36px;color:var(--text-dim);margin-bottom:12px;display:block"></i>
+                        <p>Songs you like will appear here. Hit ♥ while listening!</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ======= PROFILE PAGE ======= -->
+            <div id="page-profile" class="page">
+                <div class="profile-hero">
+                    <div class="profile-avatar">🎵</div>
+                    <div class="profile-info">
+                        <h2>Music Lover</h2>
+                        <p>@tunezy_user · Mumbai, India</p>
+                        <div class="profile-stats">
+                            <div class="stat-box">
+                                <div class="stat-num">847</div>
+                                <div class="stat-label">Songs Played</div>
+                            </div>
+                            <div class="stat-box">
+                                <div class="stat-num">12</div>
+                                <div class="stat-label">Playlists</div>
+                            </div>
+                            <div class="stat-box">
+                                <div class="stat-num">340h</div>
+                                <div class="stat-label">Listened</div>
+                            </div>
+                        </div>
+                        <button class="profile-edit-btn" onclick="showToast('Edit profile coming soon!')"><i
+                                class="fas fa-pen"></i> &nbsp;Edit Profile</button>
+                    </div>
+                </div>
+
+                <div class="section-head">
+                    <h2>🎤 Top Artists</h2>
+                </div>
+                <div class="artists-grid">
+                    <div class="artist-card" onclick="searchAndPlay('Arijit Singh songs')">
+                        <div class="artist-avatar">🎤</div>
+                        <h4>Arijit Singh</h4>
+                        <p>Bollywood</p>
+                    </div>
+                    <div class="artist-card" onclick="searchAndPlay('AP Dhillon songs')">
+                        <div class="artist-avatar">🎸</div>
+                        <h4>AP Dhillon</h4>
+                        <p>Punjabi Pop</p>
+                    </div>
+                    <div class="artist-card" onclick="searchAndPlay('Shreya Ghoshal songs')">
+                        <div class="artist-avatar">🌟</div>
+                        <h4>Shreya Ghoshal</h4>
+                        <p>Playback</p>
+                    </div>
+                    <div class="artist-card" onclick="searchAndPlay('Badshah rap songs')">
+                        <div class="artist-avatar">🔥</div>
+                        <h4>Badshah</h4>
+                        <p>Hip-Hop/Rap</p>
+                    </div>
+                    <div class="artist-card" onclick="searchAndPlay('Atif Aslam songs')">
+                        <div class="artist-avatar">💙</div>
+                        <h4>Atif Aslam</h4>
+                        <p>Pakistani Pop</p>
+                    </div>
+                </div>
+
+                <div class="section-head section-stats">
+                    <h2>📊 Listening Stats</h2>
+                </div>
+                <div class="stats-grid">
+                    <div class="stats-card">
+                        <div class="stats-label">Favourite Genre</div>
+                        <div class="stats-value">Bollywood</div>
+                    </div>
+                    <div class="stats-card">
+                        <div class="stats-label">This Month</div>
+                        <div class="stats-value">142 Songs</div>
+                    </div>
+                    <div class="stats-card">
+                        <div class="stats-label">Streak 🔥</div>
+                        <div class="stats-value">7 Days</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ======= PREMIUM PAGE ======= -->
+            <div id="page-premium" class="page">
+                <div class="premium-hero">
+                    <h1>Upgrade to <span>Premium</span></h1>
+                    <p>Unlock unlimited music, HD audio, and an ad-free experience.</p>
+                </div>
+
+                <div class="plans-grid">
+                    <div class="plan-card">
+                        <div class="plan-name">Free</div>
+                        <div class="plan-price">₹0 <span>/mo</span></div>
+                        <div class="plan-period">Forever free</div>
+                        <ul class="plan-features">
+                            <li><i class="fas fa-check"></i> Stream music</li>
+                            <li><i class="fas fa-check"></i> YouTube integration</li>
+                            <li><i class="fas fa-check"></i> 5 playlists</li>
+                            <li class="disabled"><i class="fas fa-times"></i> No ads</li>
+                            <li class="disabled"><i class="fas fa-times"></i> HD audio</li>
+                            <li class="disabled"><i class="fas fa-times"></i> Offline mode</li>
+                        </ul>
+                        <button class="plan-btn outline">Current Plan</button>
+                    </div>
+
+                    <div class="plan-card featured">
+                        <div class="plan-badge">⭐ MOST POPULAR</div>
+                        <div class="plan-name">Pro</div>
+                        <div class="plan-price">₹99 <span>/mo</span></div>
+                        <div class="plan-period">Billed monthly</div>
+                        <ul class="plan-features">
+                            <li><i class="fas fa-check"></i> Everything in Free</li>
+                            <li><i class="fas fa-check"></i> No ads</li>
+                            <li><i class="fas fa-check"></i> HD audio quality</li>
+                            <li><i class="fas fa-check"></i> Unlimited playlists</li>
+                            <li><i class="fas fa-check"></i> Lyrics view</li>
+                            <li class="disabled"><i class="fas fa-times"></i> Offline mode</li>
+                        </ul>
+                        <button class="plan-btn primary" onclick="showToast('Redirecting to payment…')">Get Pro
+                            →</button>
+                    </div>
+
+                    <div class="plan-card">
+                        <div class="plan-name">Ultra</div>
+                        <div class="plan-price">₹199 <span>/mo</span></div>
+                        <div class="plan-period">Billed monthly</div>
+                        <ul class="plan-features">
+                            <li><i class="fas fa-check"></i> Everything in Pro</li>
+                            <li><i class="fas fa-check"></i> Offline mode</li>
+                            <li><i class="fas fa-check"></i> Lossless audio</li>
+                            <li><i class="fas fa-check"></i> AI recommendations</li>
+                            <li><i class="fas fa-check"></i> Priority support</li>
+                            <li><i class="fas fa-check"></i> Family sharing (6)</li>
+                        </ul>
+                        <button class="plan-btn outline" onclick="showToast('Redirecting to payment…')">Get
+                            Ultra</button>
+                    </div>
+                </div>
+
+                <div class="section-head section-premium-why">
+                    <h2>✨ Why go Premium?</h2>
+                </div>
+                <div class="perks-grid">
+                    <div class="perk-card">
+                        <div class="perk-icon"><i class="fas fa-ban"></i></div>
+                        <h4>Zero Ads</h4>
+                        <p>Listen without interruptions. Pure music, no breaks.</p>
+                    </div>
+                    <div class="perk-card">
+                        <div class="perk-icon"><i class="fas fa-wifi"></i></div>
+                        <h4>HD Audio</h4>
+                        <p>Hear every detail in studio-quality high-definition audio.</p>
+                    </div>
+                    <div class="perk-card">
+                        <div class="perk-icon"><i class="fas fa-download"></i></div>
+                        <h4>Offline Mode</h4>
+                        <p>Download and listen anywhere, even without internet.</p>
+                    </div>
+                    <div class="perk-card">
+                        <div class="perk-icon"><i class="fas fa-robot"></i></div>
+                        <h4>AI Picks</h4>
+                        <p>Personalised recommendations that understand your taste.</p>
+                    </div>
+                    <div class="perk-card">
+                        <div class="perk-icon"><i class="fas fa-users"></i></div>
+                        <h4>Family Sharing</h4>
+                        <p>Share Ultra with up to 6 family members at no extra cost.</p>
+                    </div>
+                    <div class="perk-card">
+                        <div class="perk-icon"><i class="fas fa-microphone-alt"></i></div>
+                        <h4>Live Lyrics</h4>
+                        <p>Follow every word in real-time as the song plays.</p>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div><!-- end app-shell -->
+
+    <!-- ============================================================
+     PLAYER BAR
+============================================================ -->
+    <div class="player-bar">
+        <!-- Track info -->
+        <div class="player-track">
+            <div class="player-thumb" id="player-thumb">
+                <i class="fas fa-music"></i>
+            </div>
+            <div class="player-track-info">
+                <h4 id="player-title">Nothing playing</h4>
+                <p id="player-channel">Pick a song to start</p>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="player-controls">
+            <div class="player-buttons">
+                <button class="ctrl-btn" onclick="toggleShuffle()" id="shuffleBtn" title="Shuffle"><i
+                        class="fas fa-shuffle"></i></button>
+                <button class="ctrl-btn" onclick="playPrev()" title="Previous"><i
+                        class="fas fa-backward-step"></i></button>
+                <button class="ctrl-btn play-main" onclick="togglePlay()" id="playBtn" title="Play"><i class="fas fa-play"
+                        id="playIcon"></i></button>
+                <button class="ctrl-btn" onclick="playNext()" title="Next"><i class="fas fa-forward-step"></i></button>
+                <button class="ctrl-btn" onclick="toggleRepeat()" id="repeatBtn" title="Repeat"><i
+                        class="fas fa-repeat"></i></button>
+            </div>
+            <div class="progress-wrap">
+                <span class="progress-time" id="cur-time">0:00</span>
+                <div class="progress-bar" onclick="seekTo(event)" id="prog-bar">
+                    <div class="progress-fill" id="prog-fill"></div>
+                </div>
+                <span class="progress-time" id="dur-time">0:00</span>
+            </div>
+        </div>
+
+        <!-- Right -->
+        <div class="player-right">
+            <div class="eq-bars paused" id="eq-bars">
+                <span></span><span></span><span></span><span></span>
+            </div>
+            <div class="vol-wrap">
+                <button class="vol-btn" onclick="toggleMute()" title="Mute"><i class="fas fa-volume-high" id="volIcon"></i></button>
+                <input type="range" class="vol-slider" id="volSlider" min="0" max="100" value="80" title="Volume"
+                    oninput="setVolume(this.value)">
+            </div>
+            <button class="ctrl-btn" onclick="toggleLike()" id="likeBtn" title="Like"><i
+                    class="fas fa-heart"></i></button>
+        </div>
     </div>
-  </div>
-</div>
+
+    <!-- ============================================================
+     MOBILE BOTTOM NAV
+============================================================ -->
+    <nav class="mobile-nav">
+        <a onclick="goTo('home',this)" class="active" data-page="home">
+            <i class="fas fa-house"></i><span>Home</span>
+        </a>
+        <a onclick="goTo('search',this)" data-page="search">
+            <i class="fas fa-search"></i><span>Search</span>
+        </a>
+        <a onclick="goTo('library',this)" data-page="library">
+            <i class="fas fa-music"></i><span>Library</span>
+        </a>
+        <a onclick="goTo('profile',this)" data-page="profile">
+            <i class="fas fa-user"></i><span>Profile</span>
+        </a>
+        <a onclick="goTo('premium',this)" data-page="premium">
+            <i class="fas fa-star"></i><span>Premium</span>
+        </a>
+    </nav>
+
+    <!-- YouTube IFrame API -->
+    <script src="https://www.youtube.com/iframe_api"></script>
+
+    <script src="script.js"></script>
+
 </body>
+
 </html>
-
-
-
-

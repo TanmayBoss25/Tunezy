@@ -1,251 +1,394 @@
-const QUOTES = [
-  {q:"The secret of getting ahead is getting started.",a:"Mark Twain"},
-  {q:"Write hard and clear about what hurts.",a:"Ernest Hemingway"},
-  {q:"One day or day one. You decide.",a:"Unknown"},
-  {q:"Small steps every day lead to big changes.",a:"Unknown"},
-  {q:"Your journal is a garden for your thoughts.",a:"Unknown"}
-];
+/* ================================================================
+   TUNEZY — MAIN SCRIPT
+   THE TRICK: YouTube iframe is rendered at 1x1px with opacity ~0.
+   The YT IFrame API still loads and plays the video (audio+video).
+   Since the browser can't see opacity:0 blocks audio on mobile,
+   we use opacity:0.01 so it's technically "visible" and audio
+   keeps playing even when the tab is in the background.
+================================================================ */
 
-let selectedMood = null;
-let storedPass = localStorage.getItem('blogPass') || 'personalme';
+const API_KEY = 'AIzaSyD1rlVFtogeUy07xlHN7rr-JFYegrK0wM0'; // Replace with your key
 
-function toast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2500);
-}
+let ytPlayer       = null;
+let ytReady        = false;
+let isPlaying      = false;
+let isShuffle      = false;
+let isRepeat       = false;
+let isMuted        = false;
+let currentVolume  = 80;
+let progressTimer  = null;
+let likedSongs     = [];
+let queue          = [];
+let queueIndex     = -1;
+let currentVideo   = null;
+let searchDebounce = null;
 
-function doLogin() {
-  const val = document.getElementById('pinInput').value;
-  if (val === storedPass) {
-    document.getElementById('loginScreen').style.display = 'none';
-    document.getElementById('mainApp').style.display = 'flex';
-    loadAll();
-  } else {
-    document.getElementById('errMsg').textContent = 'Incorrect password. Try again.';
-    document.getElementById('pinInput').value = '';
+/* ---- Greeting ---- */
+(function() {
+  const h = new Date().getHours();
+  const t = h < 12 ? 'Morning' : h < 17 ? 'Afternoon' : 'Evening';
+  document.getElementById('greeting-time').textContent = t;
+})();
+
+/* ---- NAVIGATION ---- */
+function goTo(page, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+
+  // Clear all active states
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.mobile-nav a').forEach(a => a.classList.remove('active'));
+
+  // Set active on sidebar item matching this page
+  document.querySelectorAll('.nav-item').forEach(n => {
+    const oc = n.getAttribute('onclick') || '';
+    if (oc.includes("'" + page + "'") || oc.includes('"' + page + '"')) {
+      n.classList.add('active');
+    }
+  });
+
+  // Set active on mobile nav item matching this page
+  document.querySelectorAll('.mobile-nav a').forEach(a => {
+    if (a.dataset.page === page) a.classList.add('active');
+  });
+
+  // Also highlight the element that was clicked (if it's a nav item)
+  if (el && el.classList && el.classList.contains('nav-item')) {
+    el.classList.add('active');
   }
 }
 
-function doLogout() {
-  document.getElementById('mainApp').style.display = 'none';
-  document.getElementById('loginScreen').style.display = 'flex';
-  document.getElementById('pinInput').value = '';
-  document.getElementById('errMsg').textContent = '';
-}
-
-function nav(id, btn) {
-  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-  document.querySelectorAll('.nav-link').forEach(b => b.classList.remove('active'));
-  document.getElementById('sec-'+id).classList.add('active');
-  btn.classList.add('active');
-}
-
-function loadAll() {
-  loadGallery(); loadBirthdays(); loadMoodHistory();
-  const ab = localStorage.getItem('about');
-  if (ab) { document.getElementById('homeAbout').textContent = ab; document.getElementById('aboutInput').value = ab; }
-  const q = QUOTES[new Date().getDate() % QUOTES.length];
-  document.getElementById('dailyQuote').innerHTML = `"${q.q}"<div class="quote-attr">— ${q.a}</div>`;
-  updateStats();
-  loadUpcoming();
-}
-
-function updateStats() {
-  const diary = JSON.parse(localStorage.getItem('diary')||'{}');
-  const bdays = JSON.parse(localStorage.getItem('birthdays')||'[]');
-  const gallery = JSON.parse(localStorage.getItem('gallery')||'{}');
-  let photos = 0;
-  Object.values(gallery).forEach(arr => photos += arr.length);
-  document.getElementById('statDiary').textContent = Object.keys(diary).length;
-  document.getElementById('statBirthdays').textContent = bdays.length;
-  document.getElementById('statPhotos').textContent = photos;
-}
-
-function loadUpcoming() {
-  const bdays = JSON.parse(localStorage.getItem('birthdays')||'[]');
-  const today = new Date();
-  const upcoming = bdays.map(b => {
-    const d = new Date(b.date);
-    const next = new Date(today.getFullYear(), d.getMonth(), d.getDate());
-    if (next < today) next.setFullYear(today.getFullYear()+1);
-    const diff = Math.ceil((next - today) / 86400000);
-    return {...b, diff};
-  }).filter(b => b.diff <= 30).sort((a,b) => a.diff - b.diff);
-  const el = document.getElementById('homeUpcoming');
-  if (!upcoming.length) { el.textContent = 'No upcoming birthdays in the next 30 days.'; return; }
-  el.innerHTML = upcoming.map(b => `<div style="padding:6px 0;border-bottom:0.5px solid #e8e3dc;font-family:Arial,sans-serif;font-size:13px;display:flex;justify-content:space-between;"><span>${b.name}</span><span class="upcoming-badge">in ${b.diff} day${b.diff!==1?'s':''}</span></div>`).join('');
-}
-
-function addPhoto() {
-  const date = document.getElementById('galleryDate').value;
-  const file = document.getElementById('imageUpload').files[0];
-  if (!date || !file) { toast('Please select a date and a photo.'); return; }
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    const gallery = JSON.parse(localStorage.getItem('gallery')||'{}');
-    if (!gallery[date]) gallery[date] = [];
-    gallery[date].push(e.target.result);
-    localStorage.setItem('gallery', JSON.stringify(gallery));
-    loadGallery(); updateStats(); toast('Photo added!');
-  };
-  reader.readAsDataURL(file);
-}
-
-function loadGallery() {
-  const gallery = JSON.parse(localStorage.getItem('gallery')||'{}');
-  const el = document.getElementById('galleryContent');
-  el.innerHTML = '';
-  const dates = Object.keys(gallery).sort().reverse();
-  if (!dates.length) { el.innerHTML = '<div class="card" style="color:#aaa;font-size:13px;font-family:Arial,sans-serif;">No photos yet.</div>'; return; }
-  dates.forEach(date => {
-    const grp = document.createElement('div');
-    grp.className = 'card gallery-group';
-    grp.innerHTML = `<div class="card-label">${date}</div><div class="gallery-grid" id="gg-${date}"></div>`;
-    el.appendChild(grp);
-    const grid = grp.querySelector('.gallery-grid');
-    gallery[date].forEach(src => {
-      const img = document.createElement('img');
-      img.src = src;
-      grid.appendChild(img);
-    });
+/* ---- YOUTUBE API ---- */
+function onYouTubeIframeAPIReady() {
+  ytPlayer = new YT.Player('yt-hidden-player', {
+    height: '1', width: '1',
+    videoId: '',
+    playerVars: { playsinline: 1, controls: 0, rel: 0, autoplay: 0 },
+    events: {
+      onReady: () => { ytReady = true; ytPlayer.setVolume(currentVolume); },
+      onStateChange: onYTStateChange
+    }
   });
 }
 
-function saveDiary() {
-  const date = document.getElementById('diaryDate').value;
-  const entry = document.getElementById('diaryEntry').value.trim();
-  if (!date || !entry) { toast('Please select a date and write something.'); return; }
-  const diary = JSON.parse(localStorage.getItem('diary')||'{}');
-  diary[date] = entry;
-  localStorage.setItem('diary', JSON.stringify(diary));
-  updateStats(); toast('Diary entry saved!');
-  document.getElementById('diaryEntry').value = '';
-}
-
-function searchDiary() {
-  const date = document.getElementById('searchDate').value;
-  if (!date) { toast('Please select a date.'); return; }
-  const diary = JSON.parse(localStorage.getItem('diary')||'{}');
-  const el = document.getElementById('searchResult');
-  el.style.display = 'block';
-  el.textContent = diary[date] || 'No entry found for this date.';
-}
-
-function showAllDiary() {
-  const diary = JSON.parse(localStorage.getItem('diary')||'{}');
-  const el = document.getElementById('searchResult');
-  el.style.display = 'block';
-  const dates = Object.keys(diary).sort().reverse();
-  if (!dates.length) { el.textContent = 'No diary entries yet.'; return; }
-  el.innerHTML = dates.map(d => `<div style="margin-bottom:12px;"><div style="font-size:11px;color:#aaa;margin-bottom:4px;letter-spacing:0.4px;">${d}</div><div style="color:#1a1a1a;">${diary[d]}</div></div>`).join('');
-}
-
-function addBirthday() {
-  const name = document.getElementById('bdName').value.trim();
-  const date = document.getElementById('bdDate').value;
-  if (!name || !date) { toast('Please enter a name and date.'); return; }
-  const bdays = JSON.parse(localStorage.getItem('birthdays')||'[]');
-  bdays.push({name, date});
-  localStorage.setItem('birthdays', JSON.stringify(bdays));
-  loadBirthdays(); updateStats(); loadUpcoming(); toast('Birthday added!');
-  document.getElementById('bdName').value = ''; document.getElementById('bdDate').value = '';
-}
-
-function loadBirthdays() {
-  const bdays = JSON.parse(localStorage.getItem('birthdays')||'[]');
-  const el = document.getElementById('birthdayList');
-  if (!bdays.length) { el.innerHTML = '<div class="card" style="color:#aaa;font-size:13px;font-family:Arial,sans-serif;">No birthdays added yet.</div>'; return; }
-  const today = new Date();
-  el.innerHTML = '<div class="card">' + bdays.map((b,i) => {
-    const d = new Date(b.date);
-    const next = new Date(today.getFullYear(), d.getMonth(), d.getDate());
-    if (next < today) next.setFullYear(today.getFullYear()+1);
-    const diff = Math.ceil((next - today) / 86400000);
-    const soon = diff <= 7 ? `<span class="upcoming-badge">Soon!</span>` : '';
-    return `<div class="birthday-item"><div><div class="birthday-name">${b.name} ${soon}</div><div class="birthday-date">${b.date}</div></div><button onclick="removeBirthday(${i})" style="background:none;border:none;color:#ccc;cursor:pointer;font-size:16px;" title="Remove">×</button></div>`;
-  }).join('') + '</div>';
-}
-
-function removeBirthday(i) {
-  const bdays = JSON.parse(localStorage.getItem('birthdays')||'[]');
-  bdays.splice(i,1);
-  localStorage.setItem('birthdays', JSON.stringify(bdays));
-  loadBirthdays(); updateStats(); loadUpcoming(); toast('Removed.');
-}
-
-function selectMood(btn, mood) {
-  document.querySelectorAll('.mood-btn').forEach(b => b.classList.remove('selected'));
-  btn.classList.add('selected');
-  selectedMood = mood;
-}
-
-function saveMood() {
-  if (!selectedMood) { toast('Please select a mood.'); return; }
-  const note = document.getElementById('moodNote').value.trim();
-  const moods = JSON.parse(localStorage.getItem('moods')||'[]');
-  const today = new Date().toISOString().split('T')[0];
-  moods.unshift({date: today, mood: selectedMood, note});
-  localStorage.setItem('moods', JSON.stringify(moods.slice(0,30)));
-  loadMoodHistory(); toast('Mood logged!');
-  document.getElementById('moodNote').value = '';
-  selectedMood = null;
-  document.querySelectorAll('.mood-btn').forEach(b => b.classList.remove('selected'));
-}
-
-function loadMoodHistory() {
-  const moods = JSON.parse(localStorage.getItem('moods')||'[]');
-  const el = document.getElementById('moodHistory');
-  if (!moods.length) { el.innerHTML = ''; return; }
-  el.innerHTML = '<div class="card"><div class="card-label">Recent moods</div>' + moods.slice(0,10).map(m =>
-    `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:0.5px solid #e8e3dc;font-family:Arial,sans-serif;font-size:13px;"><div><span style="font-weight:500;">${m.mood}</span>${m.note ? ' — '+m.note : ''}</div><span style="color:#aaa;font-size:11px;">${m.date}</span></div>`
-  ).join('') + '</div>';
-}
-
-function saveAbout() {
-  const v = document.getElementById('aboutInput').value.trim();
-  localStorage.setItem('about', v);
-  document.getElementById('homeAbout').textContent = v || 'No information added yet.';
-  toast('About saved!');
-}
-
-function applyFont() {
-  const f = document.getElementById('fontSel').value;
-  document.querySelector('.blog-root').style.fontFamily = f;
-  toast('Font applied!');
-}
-
-function applyTheme(t) {
-  const root = document.querySelector('.blog-root');
-  const sidebar = document.querySelector('.sidebar');
-  if (t === 'dark') {
-    root.style.background = '#18181b'; root.style.color = '#e8e3dc';
-    sidebar.style.background = '#111'; sidebar.style.borderColor = '#333';
-    document.querySelectorAll('.card').forEach(c => { c.style.background='#222'; c.style.borderColor='#333'; });
-  } else if (t === 'white') {
-    root.style.background = '#fff'; root.style.color = '#1a1a1a';
-    sidebar.style.background = '#fafafa'; sidebar.style.borderColor = '#eee';
-    document.querySelectorAll('.card').forEach(c => { c.style.background='#fff'; c.style.borderColor='#eee'; });
-  } else {
-    root.style.background = '#faf8f5'; root.style.color = '#1a1a1a';
-    sidebar.style.background = '#fff'; sidebar.style.borderColor = '#d6cfc4';
-    document.querySelectorAll('.card').forEach(c => { c.style.background='#fff'; c.style.borderColor='#d6cfc4'; });
+function onYTStateChange(e) {
+  if (e.data === YT.PlayerState.PLAYING) {
+    isPlaying = true;
+    setPlayIcon(true);
+    document.getElementById('eq-bars').classList.remove('paused');
+    startProgressLoop();
+  } else if (e.data === YT.PlayerState.PAUSED || e.data === YT.PlayerState.BUFFERING) {
+    isPlaying = false;
+    setPlayIcon(false);
+    document.getElementById('eq-bars').classList.add('paused');
+  } else if (e.data === YT.PlayerState.ENDED) {
+    isPlaying = false;
+    setPlayIcon(false);
+    document.getElementById('eq-bars').classList.add('paused');
+    if (isRepeat) { ytPlayer.seekTo(0); ytPlayer.playVideo(); }
+    else playNext();
   }
-  toast('Theme applied!');
 }
 
-function changePass() {
-  const np = document.getElementById('newPass').value;
-  if (!np || np.length < 4) { toast('Password must be at least 4 characters.'); return; }
-  localStorage.setItem('blogPass', np);
-  storedPass = np;
-  document.getElementById('newPass').value = '';
-  toast('Password updated!');
+function setPlayIcon(playing) {
+  const icon = document.getElementById('playIcon');
+  icon.className = playing ? 'fas fa-pause' : 'fas fa-play';
 }
 
-function clearAll() {
-  if (!confirm('Clear ALL data? This cannot be undone.')) return;
-  ['diary','gallery','birthdays','about','moods'].forEach(k => localStorage.removeItem(k));
-  loadAll(); toast('All data cleared.');
+/* ---- PLAY VIDEO ---- */
+function playVideo(videoId, title, channel, thumb) {
+  if (!ytReady) { showToast('Player loading…'); return; }
+  currentVideo = { videoId, title, channel, thumb };
+  ytPlayer.loadVideoById(videoId);
+  ytPlayer.setVolume(currentVolume);
+
+  document.getElementById('player-title').textContent   = title;
+  document.getElementById('player-channel').textContent = channel;
+  const thumbEl = document.getElementById('player-thumb');
+  if (thumb) {
+    thumbEl.innerHTML = `<img src="${thumb}" alt="thumb">`;
+  } else {
+    thumbEl.innerHTML = `<i class="fas fa-music"></i>`;
+  }
+
+  // Add to recent
+  addToRecent({ videoId, title, channel, thumb });
 }
+
+/* ---- PLAYER CONTROLS ---- */
+function togglePlay() {
+  if (!ytReady || !currentVideo) return showToast('Search and play a song first!');
+  if (isPlaying) ytPlayer.pauseVideo(); else ytPlayer.playVideo();
+}
+
+function playNext() {
+  if (queue.length === 0) return;
+  if (isShuffle) queueIndex = Math.floor(Math.random() * queue.length);
+  else queueIndex = (queueIndex + 1) % queue.length;
+  const v = queue[queueIndex];
+  playVideo(v.videoId, v.title, v.channel, v.thumb);
+}
+
+function playPrev() {
+  if (queue.length === 0) return;
+  queueIndex = (queueIndex - 1 + queue.length) % queue.length;
+  const v = queue[queueIndex];
+  playVideo(v.videoId, v.title, v.channel, v.thumb);
+}
+
+function toggleShuffle() {
+  isShuffle = !isShuffle;
+  document.getElementById('shuffleBtn').style.color = isShuffle ? 'var(--accent-soft)' : '';
+  showToast(isShuffle ? 'Shuffle ON' : 'Shuffle OFF');
+}
+
+function toggleRepeat() {
+  isRepeat = !isRepeat;
+  document.getElementById('repeatBtn').style.color = isRepeat ? 'var(--accent-soft)' : '';
+  showToast(isRepeat ? 'Repeat ON' : 'Repeat OFF');
+}
+
+function toggleMute() {
+  isMuted = !isMuted;
+  if (ytReady) isMuted ? ytPlayer.mute() : ytPlayer.unMute();
+  document.getElementById('volIcon').className = isMuted ? 'fas fa-volume-xmark' : 'fas fa-volume-high';
+}
+
+function setVolume(v) {
+  currentVolume = parseInt(v);
+  if (ytReady) ytPlayer.setVolume(currentVolume);
+}
+
+function seekTo(e) {
+  if (!ytReady || !currentVideo) return;
+  const bar = document.getElementById('prog-bar');
+  const rect = bar.getBoundingClientRect();
+  const pct = (e.clientX - rect.left) / rect.width;
+  const dur = ytPlayer.getDuration();
+  if (dur > 0) ytPlayer.seekTo(pct * dur, true);
+}
+
+/* ---- PROGRESS LOOP ---- */
+function startProgressLoop() {
+  clearInterval(progressTimer);
+  progressTimer = setInterval(() => {
+    if (!ytReady || !ytPlayer.getCurrentTime) return;
+    const cur = ytPlayer.getCurrentTime() || 0;
+    const dur = ytPlayer.getDuration()    || 0;
+    if (dur > 0) {
+      const pct = (cur / dur) * 100;
+      document.getElementById('prog-fill').style.width = pct + '%';
+      document.getElementById('cur-time').textContent = fmtTime(cur);
+      document.getElementById('dur-time').textContent = fmtTime(dur);
+    }
+  }, 500);
+}
+
+function fmtTime(s) {
+  const m = Math.floor(s / 60);
+  const sec = Math.floor(s % 60);
+  return m + ':' + (sec < 10 ? '0' : '') + sec;
+}
+
+/* ---- LIKE ---- */
+function toggleLike() {
+  if (!currentVideo) return showToast('Play a song first!');
+  const likeBtn = document.getElementById('likeBtn');
+  const btn = likeBtn ? likeBtn.querySelector('i') : null;
+  const idx = likedSongs.findIndex(s => s.videoId === currentVideo.videoId);
+  if (idx > -1) {
+    likedSongs.splice(idx, 1);
+    if (btn) btn.style.color = '';
+    showToast('Removed from Liked Songs');
+  } else {
+    likedSongs.push({ ...currentVideo });
+    if (btn) btn.style.color = 'var(--pink)';
+    showToast('❤️ Added to Liked Songs!');
+  }
+  renderLikedSongs();
+}
+
+function renderLikedSongs() {
+  const el = document.getElementById('liked-songs-list');
+  if (!el) return;
+  if (likedSongs.length === 0) {
+    el.innerHTML = `<div style="padding:40px;text-align:center;color:var(--text-muted)">
+      <i class="fas fa-heart" style="font-size:36px;color:var(--text-dim);margin-bottom:12px;display:block"></i>
+      <p>Songs you like will appear here. Hit ♥ while listening!</p>
+    </div>`;
+    return;
+  }
+  el.innerHTML = likedSongs.map((s, i) => {
+    const title = escStr(s.title);
+    const ch    = escStr(s.channel);
+    const thumb = escStr(s.thumb || '');
+    return `
+    <div class="track-row" onclick="playVideo('${s.videoId}','${title}','${ch}','${thumb}')">
+      <span class="track-num">${i+1}</span>
+      <span class="track-play"><i class="fas fa-play"></i></span>
+      <div class="track-thumb">${s.thumb?`<img src="${s.thumb}" alt="thumb">`:'🎵'}</div>
+      <div class="track-info"><h4>${title}</h4><p>${ch}</p></div>
+      <span class="track-duration"><i class="fas fa-heart" style="color:var(--pink)"></i></span>
+    </div>`;
+  }).join('');
+}
+
+/* ---- RECENT TRACKS ---- */
+let recentTracks = [
+  { videoId: 'tVj0ZTS4WF4', title: 'Tum Hi Ho – Arijit Singh', channel: 'T-Series', thumb: '' },
+  { videoId: 'ALZHF5UqnU4', title: 'Kesariya – Arijit Singh', channel: 'Dharma Music', thumb: '' },
+  { videoId: '3AtDnEC4zak', title: 'Raataan Lambiyan', channel: 'T-Series', thumb: '' },
+];
+
+function addToRecent(v) {
+  recentTracks = recentTracks.filter(r => r.videoId !== v.videoId);
+  recentTracks.unshift(v);
+  if (recentTracks.length > 10) recentTracks.pop();
+  renderRecent();
+}
+
+function renderRecent() {
+  const el = document.getElementById('recent-tracks');
+  if (!el) return;
+  el.innerHTML = recentTracks.slice(0, 6).map((s, i) => {
+    const vid   = encodeURIComponent(s.videoId);
+    const title = escStr(s.title);
+    const ch    = escStr(s.channel);
+    const thumb = escStr(s.thumb || '');
+    return `
+    <div class="track-row" onclick="playVideo('${s.videoId}','${title}','${ch}','${thumb}')">
+      <span class="track-num">${i+1}</span>
+      <span class="track-play"><i class="fas fa-play"></i></span>
+      <div class="track-thumb">${s.thumb?`<img src="${s.thumb}" alt="thumb">`:'🎵'}</div>
+      <div class="track-info"><h4>${title}</h4><p>${ch}</p></div>
+      <button class="track-heart" onclick="event.stopPropagation();heartTrack(this,'${s.videoId}','${title}','${ch}','${thumb}')">
+        <i class="fas fa-heart"></i>
+      </button>
+      <span class="track-duration">♪</span>
+    </div>`;
+  }).join('');
+}
+
+// Wait for DOM before first render
+document.addEventListener('DOMContentLoaded', renderRecent);
+
+function heartTrack(el, videoId, title, channel, thumb) {
+  const icon = el.querySelector('i');
+  const idx = likedSongs.findIndex(s => s.videoId === videoId);
+  if (idx > -1) {
+    icon.style.color = '';
+    likedSongs.splice(idx, 1);
+    showToast('Removed from Liked Songs');
+  } else {
+    icon.style.color = 'var(--pink)';
+    likedSongs.push({ videoId, title, channel, thumb });
+    showToast('❤️ Added to Liked Songs!');
+  }
+  renderLikedSongs();
+}
+
+/* ---- SEARCH ---- */
+let lastQuery = '';
+
+function handleSearch(val) {
+  clearTimeout(searchDebounce);
+  if (val.length < 2) return;
+  searchDebounce = setTimeout(() => triggerSearch(val), 700);
+}
+
+function triggerSearch(q) {
+  const input = document.getElementById('searchInput');
+  const query = q || input.value.trim();
+  if (!query || query === lastQuery) return;
+  lastQuery = query;
+  fetchYT(query);
+}
+
+function searchAndPlay(q) {
+  document.getElementById('searchInput').value = q;
+  goTo('search', null);
+  fetchYT(q, true);
+}
+
+function fetchYT(query, autoPlay) {
+  const area = document.getElementById('search-results-area');
+  area.innerHTML = `<div class="loading-spinner"><div class="spinner"></div><span>Searching for "${query}"…</span></div>`;
+
+  const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoCategoryId=10&q=${encodeURIComponent(query)}&key=${API_KEY}&maxResults=12`;
+
+  fetch(url)
+    .then(r => r.json())
+    .then(data => {
+      if (!data.items || data.items.length === 0) {
+        area.innerHTML = `<div class="search-empty"><i class="fas fa-search"></i><h3>No results</h3><p>Try a different search term</p></div>`;
+        return;
+      }
+      queue = data.items.map(v => ({
+        videoId:  v.id.videoId,
+        title:    v.snippet.title,
+        channel:  v.snippet.channelTitle,
+        thumb:    v.snippet.thumbnails.medium.url
+      }));
+      queueIndex = 0;
+      renderResults(data.items);
+      if (autoPlay) playVideo(queue[0].videoId, queue[0].title, queue[0].channel, queue[0].thumb);
+    })
+    .catch(() => {
+      area.innerHTML = `<div class="search-empty"><i class="fas fa-exclamation-triangle" style="color:#ef4444"></i><h3>Search failed</h3><p>Check your API key or connection</p></div>`;
+    });
+}
+
+function renderResults(items) {
+  const area = document.getElementById('search-results-area');
+  area.innerHTML = `
+    <div style="padding:16px 36px 8px;font-size:13px;color:var(--text-muted)">
+      Found ${items.length} results
+    </div>
+    <div class="search-results-grid">
+      ${items.map((v, i) => {
+        const vid   = v.id.videoId;
+        const title = escStr(v.snippet.title);
+        const ch    = escStr(v.snippet.channelTitle);
+        const thumb = v.snippet.thumbnails.medium.url;
+        return `
+          <div class="result-card">
+            <img src="${thumb}" alt="${title}" loading="lazy">
+            <div class="result-card-body">
+              <h4>${title}</h4>
+              <p><i class="fab fa-youtube" style="color:#ff0000"></i> ${ch}</p>
+            </div>
+            <button class="result-card-play"
+              onclick="queueIndex=${i};playVideo('${vid}','${title}','${ch}','${thumb}')">
+              <i class="fas fa-play"></i> Play
+            </button>
+          </div>`;
+      }).join('')}
+    </div>`;
+}
+
+/* ---- UTILS ---- */
+function escStr(s) {
+  // Encode all chars that break HTML attribute values and inline JS strings
+  return (s || '')
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, '&#39;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  document.getElementById('toast-msg').textContent = msg;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 2600);
+}
+
+/* ---- KEYBOARD SHORTCUTS ---- */
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  if (e.code === 'Space')  { e.preventDefault(); togglePlay(); }
+  if (e.code === 'ArrowRight') playNext();
+  if (e.code === 'ArrowLeft')  playPrev();
+  if (e.code === 'KeyL')       toggleLike();
+});
